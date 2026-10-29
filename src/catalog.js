@@ -1,4 +1,3 @@
-
 import { CHANNEL, esc, api, btn, link, send, edit } from './shared.js';
 import { getText } from './db.js';
 import {
