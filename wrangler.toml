@@ -7,3 +7,7 @@ compatibility_date = "2026-10-29"
 binding = "DB"
 database_name = "gpvkr-games"
 database_id = "055e65f8-8948-401d-81d6-c35a7cca556d"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
