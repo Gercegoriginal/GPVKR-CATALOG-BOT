@@ -8,6 +8,27 @@ export async function initTables(env){
  await env.DB.prepare('CREATE TABLE IF NOT EXISTS bot_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)').run();
  await env.DB.prepare('CREATE TABLE IF NOT EXISTS bot_search_limits (user_id TEXT PRIMARY KEY, last_search INTEGER NOT NULL)').run();
  await env.DB.prepare('CREATE TABLE IF NOT EXISTS bot_ignored_posts (post_id INTEGER PRIMARY KEY)').run();
+ await env.DB.prepare(`
+  CREATE TABLE IF NOT EXISTS genres (
+   id INTEGER PRIMARY KEY AUTOINCREMENT,
+   name TEXT NOT NULL UNIQUE,
+   slug TEXT NOT NULL UNIQUE
+  )
+ `).run();
+
+ await env.DB.prepare(`
+  CREATE TABLE IF NOT EXISTS game_genres (
+   game_id INTEGER NOT NULL,
+   genre_id INTEGER NOT NULL,
+   PRIMARY KEY (game_id, genre_id),
+   FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
+   FOREIGN KEY (genre_id) REFERENCES genres(id) ON DELETE CASCADE
+  )
+ `).run();
+
+ await env.DB.prepare(
+  'CREATE INDEX IF NOT EXISTS idx_game_genres_genre ON game_genres(genre_id, game_id)'
+ ).run();
 }
 export async function getText(env,key,vars={}){
  const def=TEXTS[key]?.value ?? key;
