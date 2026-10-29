@@ -1,4 +1,10 @@
 import { api } from './shared.js';
 import { update } from './handler.js';
 
-export default {async fetch(request,env,ctx){const u=new URL(request.url);if(u.pathname==='/setup'){if(!env.SETUP_KEY||u.searchParams.get('key')!==env.SETUP_KEY)return new Response('Forbidden',{status:403});const url=`${u.origin}/webhook`;const r=await api(env,'setWebhook',{url,secret_token:env.WEBHOOK_SECRET,allowed_updates:['message','callback_query','channel_post','edited_channel_post']});return new Response(await r.text(),{headers:{'content-type':'application/json'}});}if(u.pathname!=='/webhook')return new Response('GPVKR bot is running');if(request.method!=='POST'||request.headers.get('X-Telegram-Bot-Api-Secret-Token')!==env.WEBHOOK_SECRET)return new Response('Forbidden',{status:403});let data;try{data=await request.json();}catch{return new Response('Bad JSON',{status:400});}ctx.waitUntil(update(env,data).catch(e=>console.error('update error',e)));return new Response('OK');}};
+export default {async fetch(request,env,ctx){const u=new URL(request.url);if(u.pathname==='/setup'){if(!env.SETUP_KEY||u.searchParams.get('key')!==env.SETUP_KEY)return new Response('Forbidden',{status:403});const url=`${u.origin}/webhook`;const r=await api(env,'setWebhook',{url,secret_token:env.WEBHOOK_SECRET,allowed_updates:['message','callback_query','channel_post','edited_channel_post']});return new Response(await r.text(),{headers:{'content-type':'application/json'}});}if(u.pathname!=='/webhook')return new Response('GPVKR bot is running');if(request.method!=='POST'||request.headers.get('X-Telegram-Bot-Api-Secret-Token')!==env.WEBHOOK_SECRET)return new Response('Forbidden',{status:403});let data;try{data=await request.json();}catch{return new Response('Bad JSON',{status:400});}ctx.waitUntil(
+  update(env, data).catch(e => {
+    console.error('UPDATE_ERROR_MESSAGE:', String(e?.message ?? e));
+    console.error('UPDATE_ERROR_STACK:', String(e?.stack ?? 'No stack'));
+  })
+);
+return new Response('OK');}};
