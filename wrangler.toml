@@ -1,0 +1,9 @@
+# Перед подключением к Cloudflare замени значения REPLACE_WITH_* на значения своего текущего Worker и D1.
+name = "REPLACE_WITH_EXISTING_WORKER_NAME"
+main = "src/index.js"
+compatibility_date = "2026-10-29"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "REPLACE_WITH_EXISTING_DATABASE_NAME"
+database_id = "REPLACE_WITH_EXISTING_DATABASE_ID"

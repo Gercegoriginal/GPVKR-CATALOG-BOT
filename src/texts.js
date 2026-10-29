@@ -1,0 +1,4 @@
+import { TEXTS, btn, send, edit } from './shared.js';
+import { getText } from './db.js';
+
+export async function showTextSettings(env,chat,page=0,msgId=null){const entries=Object.entries(TEXTS);const per=8;const pages=Math.ceil(entries.length/per);page=Math.max(0,Math.min(page,pages-1));const subset=entries.slice(page*per,(page+1)*per);const rows=[];const resetLabel=await getText(env,'edit_reset_button');for(const [key,item] of subset)rows.push([btn(item.label,`tx:${key}`),btn(resetLabel,`tr:${key}`)]);const nav=[];if(page>0)nav.push(btn(await getText(env,'btn_prev'),`txpage:${page-1}`));nav.push(btn(await getText(env,'edit_page',{page:page+1,pages}),'noop'));if(page+1<pages)nav.push(btn(await getText(env,'btn_next'),`txpage:${page+1}`));rows.push(nav,[btn(await getText(env,'btn_cancel_edit'),'txclose')]);const body=await getText(env,'edit_pick');return msgId?edit(env,chat,msgId,body,rows):send(env,chat,body,rows);}
