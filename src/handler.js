@@ -1,8 +1,15 @@
-import { CHANNEL, TEXTS, api, btn, send, edit, esc } from './shared.js';
+import { CHANNEL, TEXTS, api, btn, link, send, edit, esc } from './shared.js';
 import { initTables, getText, saveText, resetText } from './db.js';
 import { channelPost, list, letters, search, importCsv } from './catalog.js';
 import { owner, textAdmin, adminList, telegramOk, syncCommands, helpText } from './admins.js';
 import { showTextSettings } from './texts.js';
+async function getMenu(env) {
+  return [
+    [btn(await getText(env, 'btn_letters'), 'letters')],
+    [btn(await getText(env, 'btn_help'), 'help')],
+    [link(await getText(env, 'btn_channel'), `https://t.me/${CHANNEL}`)]
+  ];
+}
 
 export async function update(env,u){
  await initTables(env);
