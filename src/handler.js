@@ -9,6 +9,11 @@ export async function update(env,u){
  if(u.channel_post||u.edited_channel_post)return channelPost(env,u.channel_post||u.edited_channel_post,!!u.edited_channel_post);
  if(u.callback_query){const c=u.callback_query,chat=c.message?.chat?.id,msg=c.message?.message_id,d=c.data||'';await api(env,'answerCallbackQuery',{callback_query_id:c.id});if(!chat||!msg)return;
   if(d==='noop')return;
+  if(d==='sync:stop'){
+   if(!await textAdmin(c.from.id,env))return;
+   await env.DB.prepare('DELETE FROM bot_settings WHERE key=?').bind('syncgenres:'+c.from.id).run();
+   return edit(env,chat,msg,'Синхронизация жанров завершена.',[[btn('Главное меню','home')]]);
+  }
   if((d==='txclose'||d==='txcancel'||d.startsWith('txpage:')||d.startsWith('tx:')||d.startsWith('tr:'))&&!owner(c.from.id,env))return edit(env,chat,msg,await getText(env,'admin_forbidden'),[]);
   if(d==='rt:n'&&owner(c.from.id,env))return edit(env,chat,msg,'Сброс текстов отменён. Ничего не изменено.',[]);
   if(d==='rt:y'&&owner(c.from.id,env)){await env.DB.prepare('DELETE FROM bot_texts').run();await env.DB.prepare('DELETE FROM bot_text_edit').run();return edit(env,chat,msg,'✅ Все изменённые тексты сброшены к исходным значениям. Активные состояния редактирования очищены.',[]);}
@@ -28,23 +33,32 @@ export async function update(env,u){
   return;
  }
  const m=u.message;if(!m||m.chat?.type!=='private')return;const chat=m.chat.id,txt=(m.text||m.caption||'').trim();
- // Telegram Bot API cannot read old channel history. Admins can forward old posts.
+ const syncKey='syncgenres:'+m.from.id;
+ if(/^\/(?:syncgenres|stopsyncgenres)(?:@\w+)?$/.test(txt)){
+  if(!await textAdmin(m.from.id,env))return send(env,chat,'Команда доступна только администраторам.');
+  if(/^\/stopsyncgenres/.test(txt)){
+   await env.DB.prepare('DELETE FROM bot_settings WHERE key=?').bind(syncKey).run();
+   return send(env,chat,'Синхронизация жанров завершена.',[[btn('Главное меню','home')]]);
+  }
+  await env.DB.prepare("INSERT INTO bot_settings(key,value) VALUES(?,'1') ON CONFLICT(key) DO UPDATE SET value='1'").bind(syncKey).run();
+  return send(env,chat,await getText(env,'sync_start'),[[btn(await getText(env,'sync_stop_button'),'sync:stop')]]);
+ }
  if(m.forward_origin?.type==='channel' || m.forward_from_chat?.type==='channel'){
   if(!await textAdmin(m.from.id,env))return;
+  const active=await env.DB.prepare('SELECT value FROM bot_settings WHERE key=?').bind(syncKey).first();
+  if(!active)return; // Only forwarded messages in sync mode are processed.
   const origin=m.forward_origin;
   const channel=origin?.chat || m.forward_from_chat;
   const postId=Number(origin?.message_id || m.forward_from_message_id);
   if(channel?.username?.toLowerCase()!==CHANNEL.toLowerCase() || !Number.isSafeInteger(postId))return;
-  const game=await env.DB.prepare('SELECT id FROM games WHERE post_id=? LIMIT 1').bind(postId).first();
-  if(!game)return send(env,chat,'Пост '+postId+' отсутствует в каталоге. Сначала добавь игру.');
-  if(shouldSkipPost(m))return send(env,chat,'Пост пропущен по служебному тегу.');
+  // Each album photo is a separate Telegram message. Ignore media without genre tags.
+  if(shouldSkipPost(m))return;
   const slugs=genreSlugsFromPost(m);
+  if(!slugs.length)return;
+  const game=await env.DB.prepare('SELECT id FROM games WHERE post_id=? LIMIT 1').bind(postId).first();
+  if(!game)return; // Do not spam about separate photos missing from the catalog.
   await attachGenresToGame(env,game.id,slugs);
-  return send(env,chat,slugs.length?'Жанры сохранены для поста '+postId+': '+slugs.length:'У поста '+postId+' нет распознанных жанровых тегов.');
- }
- if(txt==='/syncgenres'){
-  if(!await textAdmin(m.from.id,env))return send(env,chat,'Команда доступна только администраторам.');
-  return send(env,chat,'Чтобы заполнить жанры старых игр, перешли сюда исходные публикации из @'+CHANNEL+'. Я определю жанры по хештегам и привяжу их к существующим играм. Telegram Bot API не позволяет автоматически прочитать всю историю канала.');
+  return send(env,chat,await getText(env,'sync_saved',{id:postId,count:slugs.length}),[[btn(await getText(env,'sync_stop_button'),'sync:stop')]]);
  }
  // Only the configured owner can edit bot messages. Clear stale edit state for all other users.
  if(!owner(m.from.id,env))await env.DB.prepare('DELETE FROM bot_text_edit WHERE user_id=?').bind(String(m.from.id)).run();
