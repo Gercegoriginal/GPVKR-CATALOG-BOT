@@ -1,4 +1,3 @@
-
 import { CHANNEL, TEXTS, api, btn, link, send, edit, esc } from './shared.js';
 import { initTables, getText, saveText, resetText } from './db.js';
 import { channelPost, list, letters, search, importCsv, getMenu } from './catalog.js';
