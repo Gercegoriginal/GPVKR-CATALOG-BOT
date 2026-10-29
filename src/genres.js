@@ -1,9 +1,8 @@
-
 import { btn, link, send, edit } from './shared.js';
 
 export const GENRES = [
   { name: 'Новелла', slug: 'visual-novel', tags: ['новелла'] },
-  { name: 'Отoме', slug: 'otome', tags: ['отоме'] },
+  { name: 'Отоме', slug: 'otome', tags: ['отоме'] },
   { name: 'RPG', slug: 'rpg', tags: ['рпг'] },
   { name: 'Экшн', slug: 'action', tags: ['экшн', 'экшен'] },
   { name: 'Шутер', slug: 'shooter', tags: ['шутер'] },
@@ -30,7 +29,7 @@ export const TECHNICAL_TAGS = [
   'взлом', 'мод', 'кэш', 'изпредложки', 'эмулятор', 'порт'
 ];
 
-const SKIP_TAGS = new Set(['оффтоп', 'новости']);
+const SKIP_TAGS = new Set(['оффтоп', 'новости', 'хентай']);
 
 export function postTags(post) {
   const text = `${post?.text || ''}\n${post?.caption || ''}`;
@@ -50,12 +49,6 @@ export function genreSlugsFromPost(post) {
 }
 
 export async function initGenres(env) {
-  const count = await env.DB.prepare(
-    'SELECT COUNT(*) AS n FROM genres'
-  ).first();
-
-  if (Number(count?.n || 0) >= GENRES.length) return;
-
   for (const genre of GENRES) {
     await env.DB.prepare(
       'INSERT OR IGNORE INTO genres(name, slug) VALUES(?, ?)'
