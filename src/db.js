@@ -29,6 +29,12 @@ export async function initTables(env){
  await env.DB.prepare(
   'CREATE INDEX IF NOT EXISTS idx_game_genres_genre ON game_genres(genre_id, game_id)'
  ).run();
+await env.DB.prepare(`
+ CREATE TABLE IF NOT EXISTS pending_genres (
+  post_id INTEGER PRIMARY KEY,
+  slugs TEXT NOT NULL
+ )
+`).run();
 }
 export async function getText(env,key,vars={}){
  const def=TEXTS[key]?.value ?? key;
