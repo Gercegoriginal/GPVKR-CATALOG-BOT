@@ -1,13 +1,11 @@
 import { CHANNEL, TEXTS, api, btn, send, edit, esc } from './shared.js';
-import { initTables, getText, saveText, resetText } from './db.js';
+import { getText, saveText, resetText } from './db.js';
 import { channelPost, list, letters, search, importCsv, getMenu } from './catalog.js';
-import { initGenres, showGenres, showGenreGames, attachGenresToGame } from './genres.js';
+import { showGenres, showGenreGames, attachGenresToGame, genreSlugsFromPost, shouldSkipPost } from './genres.js';
 import { owner, textAdmin, adminList, telegramOk, syncCommands, helpText } from './admins.js';
 import { showTextSettings } from './texts.js';
 
 export async function update(env,u){
- await initTables(env);
- await initGenres(env);
  if(u.channel_post||u.edited_channel_post)return channelPost(env,u.channel_post||u.edited_channel_post,!!u.edited_channel_post);
  if(u.callback_query){const c=u.callback_query,chat=c.message?.chat?.id,msg=c.message?.message_id,d=c.data||'';await api(env,'answerCallbackQuery',{callback_query_id:c.id});if(!chat||!msg)return;
   if(d==='noop')return;
@@ -30,6 +28,24 @@ export async function update(env,u){
   return;
  }
  const m=u.message;if(!m||m.chat?.type!=='private')return;const chat=m.chat.id,txt=(m.text||m.caption||'').trim();
+ // Telegram Bot API cannot read old channel history. Admins can forward old posts.
+ if(m.forward_origin?.type==='channel' || m.forward_from_chat?.type==='channel'){
+  if(!await textAdmin(m.from.id,env))return;
+  const origin=m.forward_origin;
+  const channel=origin?.chat || m.forward_from_chat;
+  const postId=Number(origin?.message_id || m.forward_from_message_id);
+  if(channel?.username?.toLowerCase()!==CHANNEL.toLowerCase() || !Number.isSafeInteger(postId))return;
+  const game=await env.DB.prepare('SELECT id FROM games WHERE post_id=? LIMIT 1').bind(postId).first();
+  if(!game)return send(env,chat,'Пост '+postId+' отсутствует в каталоге. Сначала добавь игру.');
+  if(shouldSkipPost(m))return send(env,chat,'Пост пропущен по служебному тегу.');
+  const slugs=genreSlugsFromPost(m);
+  await attachGenresToGame(env,game.id,slugs);
+  return send(env,chat,slugs.length?'Жанры сохранены для поста '+postId+': '+slugs.length:'У поста '+postId+' нет распознанных жанровых тегов.');
+ }
+ if(txt==='/syncgenres'){
+  if(!await textAdmin(m.from.id,env))return send(env,chat,'Команда доступна только администраторам.');
+  return send(env,chat,'Чтобы заполнить жанры старых игр, перешли сюда исходные публикации из @'+CHANNEL+'. Я определю жанры по хештегам и привяжу их к существующим играм. Telegram Bot API не позволяет автоматически прочитать всю историю канала.');
+ }
  // Only the configured owner can edit bot messages. Clear stale edit state for all other users.
  if(!owner(m.from.id,env))await env.DB.prepare('DELETE FROM bot_text_edit WHERE user_id=?').bind(String(m.from.id)).run();
  if(owner(m.from.id,env)&&txt==='/canceltext'){await env.DB.prepare('DELETE FROM bot_text_edit WHERE user_id=?').bind(String(m.from.id)).run();return send(env,chat,await getText(env,'edit_cancelled'));}
