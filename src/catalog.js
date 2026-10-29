@@ -1,5 +1,10 @@
 import { CHANNEL, esc, api, btn, link, send, edit } from './shared.js';
 import { getText } from './db.js';
+import {
+  shouldSkipPost,
+  genreSlugsFromPost,
+  attachGenresToGame
+} from './genres.js';
 
 export async function getMenu(env){return [[btn(await getText(env,'btn_letters'),'letters')],[btn(await getText(env,'btn_help'),'help')],[link(await getText(env,'btn_channel'),`https://t.me/${CHANNEL}`)]];}
 const validTitle=s=>s&&s.length>=2&&s.length<=90&&!/^(https?:|@|#|подпис|донат|сбор|опрос|новост|добива|внимани|привет|важн|объявлен|комментар|софт)/i.test(s);
